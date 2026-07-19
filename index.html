@@ -1,31 +1,201 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8">
-<title>My CV & Interactive Computer Graphics</title>
-<style>
-body { font-family: sans-serif; margin: 40px; line-height: 1.6; background:
-#f4f6f9; }
-
-.container { max-width: 800px; background: white; padding: 30px; border-
-radius: 8px; }
-
-h1 { color: #333; }
-.project-link { display: inline-block; background: #007bff; color: white;
-padding: 10px 20px; text-decoration: none; border-radius: 5px; margin-top: 15px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nichapa's CV - Interactive Computer Graphics</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background-color: #f3f4f6;
+            color: #333;
+            padding: 40px 20px;
+        }
+        .cv-container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 40px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        }
+        header {
+            border-bottom: 2px solid #e5e7eb;
+            padding-bottom: 20px;
+            margin-bottom: 25px;
+        }
+        header h1 {
+            color: #1e3a8a;
+            font-size: 2.2rem;
+            margin-bottom: 5px;
+        }
+        header p {
+            color: #6b7280;
+            font-size: 1.1rem;
+        }
+        section {
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #2563eb;
+            font-size: 1.4rem;
+            margin-bottom: 15px;
+            border-left: 4px solid #2563eb;
+            padding-left: 10px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 120px 1fr;
+            gap: 8px;
+            margin-bottom: 10px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #4b5563;
+        }
+        .edu-item {
+            margin-bottom: 15px;
+        }
+        .edu-header {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            color: #1f2937;
+        }
+        .edu-details {
+            margin-left: 15px;
+            color: #4b5563;
+            font-size: 0.95rem;
+        }
+        .skills-list {
+            list-style: none;
+        }
+        .skills-list li {
+            margin-bottom: 10px;
+        }
+        .project-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 15px;
+        }
+        .project-title {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #0f172a;
+            margin-bottom: 8px;
+        }
+        .project-btn {
+            display: inline-block;
+            background-color: #2563eb;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 6px;
+            font-weight: bold;
+            margin-top: 15px;
+            transition: background-color 0.2s;
+        }
+        .project-btn:hover {
+            background-color: #1d4ed8;
+        }
+    </style>
 </head>
 <body>
-<div class="container">
-<h1>ประวัติส่วนตัว (Curriculum Vitae)</h1>
-<p><strong>ช่อื-นํามสกุล:</strong> [ใส่ช่อของคุณที่นี่ ื ]</p>
-<p><strong>ข้อมูลติดต่อ:</strong> [ใส่เบอร์โทร หรือ อีเมล]</p>
-<h2>กํารศึกษํา</h2>
-<p>ก;ําลังศึกษําในรํายวิชํา <strong>Interactive Computer Graphics</strong></p>
-<h2>ผลงํานกํารบ้ํานชนงํานกรําฟิก ิ้ </h2>
-<p>คลิกปุ่มด้ํานล่ํางเพื่อเข้ําชมหน้ําแสดงผล Sprite 24bit ที่สํามํารถกดคีย์บอร์ดสังขยับได้ ่ </p>
-<a class="project-link" href="tranformation.html">เข้ําสู่หน้ําชนงําน ิ้ Transformation</
-a>
-</div>
+
+    <div class="cv-container">
+        <!-- About Me -->
+        <header>
+            <h1>Nichapa Dumripattanasakul</h1>
+            <p style="color: #4b5563; text-align: justify;">
+                Hello! My name is Nichapa Dumripattanasakul, but you can call me Punch. 
+                I am currently a Computer Science student at Kasetsart University. 
+                I am interested in web development, programming, and interactive computer graphics. 
+                I enjoy learning new technologies and continuously improving my programming skills through academic projects.
+            </p>
+        </header>
+
+        <!-- Personal Information -->
+        <section>
+            <h2>Personal Information</h2>
+            <div class="info-grid">
+                <div class="info-label">Full Name:</div>
+                <div>Nichapa Dumripattanasakul</div>
+                <div class="info-label">Nickname:</div>
+                <div>Punch</div>
+                <div class="info-label">Age:</div>
+                <div>21 years old</div>
+                <div class="info-label">Gender:</div>
+                <div>Female</div>
+            </div>
+        </section>
+
+        <!-- Contact -->
+        <section>
+            <h2>Contact</h2>
+            <div class="info-grid">
+                <div class="info-label">Phone:</div>
+                <div>(+66) 86-775-3888</div>
+                <div class="info-label">Email:</div>
+                <div>nichapa.du@ku.th</div>
+            </div>
+        </section>
+
+        <!-- Education -->
+        <section>
+            <h2>Education</h2>
+            
+            <div class="edu-item">
+                <div class="edu-header">
+                    <span>Kasetsart University -> 2024 – Present</span>
+                </div>
+                <div class="edu-details">
+                    <p><strong>Degree:</strong> Bachelor of Science in Computer Science, Faculty of Liberal Arts and Science</p>
+                    <p><strong>GPAX:</strong> 3.85</p>
+                </div>
+            </div>
+
+            <div class="edu-item">
+                <div class="edu-header">
+                    <span>Suksanari School -> 2018 – 2023</span>
+                </div>
+                <div class="edu-details">
+                    <p><strong>Program:</strong> Enrichment Program of Science, Mathematics, Technology, and Environment (SMTE)</p>
+                    <p><strong>GPAX:</strong> 3.91</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Technical Skills -->
+        <section>
+            <h2>Technical Skills</h2>
+            <ul class="skills-list">
+                <li><strong>Programming Languages:</strong> C, Java, Python, HTML, JavaScript (React)</li>
+                <li><strong>Developer Tools & Frameworks:</strong> Vite, Tailwind CSS, Firebase</li>
+                <li><strong>Design & Concepts:</strong> UI Design, Interactive Computer Graphics</li>
+            </ul>
+        </section>
+
+        <!-- Projects & Link to Homework -->
+        <section>
+            <h2>Projects</h2>
+            <div class="project-box">
+                <div class="project-title">Transformation</div>
+                <p>Click the button below to visit the 24-bit sprite display page.</p>
+                <p>you can control movement using the keyboard.</p>
+                
+                <!-- Transformation -->
+                <a href="tranformation.html" class="project-btn">Go to Transformation Page</a>
+            </div>
+        </section>
+    </div>
+
 </body>
 </html>
