@@ -2,7 +2,6 @@
 
 Hello! My name is **Nichapa Dumripattanasakul**, but you can call me **Punch**. I am currently a Computer Science student at Kasetsart University. I am interested in web development, programming, and interactive computer graphics. I enjoy learning new technologies and continuously improving my programming skills through academic projects.
 
----
 
 ## Personal Information
 
@@ -11,14 +10,12 @@ Hello! My name is **Nichapa Dumripattanasakul**, but you can call me **Punch**. 
 *   **Age:** 21 years old
 *   **Gender:** Female
 
----
 
 ## Contact
 
 *   **Phone:** (+66) 86-775-3888
 *   **Email:** nichapa.du@ku.th
 
----
 
 ## Education
 
@@ -30,7 +27,6 @@ Hello! My name is **Nichapa Dumripattanasakul**, but you can call me **Punch**. 
 *   **Program:** Enrichment Program of Science, Mathematics, Technology, and Environment (SMTE)
 *   **GPAX:** 3.91
 
----
 
 ## Technical Skills
 
@@ -38,7 +34,6 @@ Hello! My name is **Nichapa Dumripattanasakul**, but you can call me **Punch**. 
 *   **Developer Tools & Frameworks:** Vite, Tailwind CSS, Firebase
 *   **Design & Concepts:** UI Design [จากภาพ: image_a61d63.png], Interactive Computer Graphics
 
----
 
 ## Projects
 
