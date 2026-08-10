@@ -130,6 +130,8 @@
         #paintCanvas {
             display: block;
             cursor: crosshair;
+            /* เพิ่มเพื่อให้เห็นขอบพิกเซลชัดเจนแบบ Pixel Art */
+            image-rendering: pixelated; 
         }
     </style>
 </head>
@@ -171,12 +173,11 @@
 
         <div class="separator"></div>
 
-        <!-- --- เปลี่ยนมาใช้ช่อง input เพื่อให้พิมพ์เลขเองได้ --- -->
         <div class="control-group">
             <span>ขนาด</span>
             <div class="size-controls">
                 <button class="size-btn" onclick="adjustSize(-1)">-</button>
-                <input type="number" id="sizeInput" value="5" min="1" max="100">
+                <input type="number" id="sizeInput" value="1" min="1" max="100">
                 <button class="size-btn" onclick="adjustSize(1)">+</button>
             </div>
         </div>
@@ -187,7 +188,7 @@
     </div>
 
     <script>
-        // --- 1. ข้อมูลรูปภาพปุ่ม (8x8 Sprite Array) ---
+        //ภาพปุ่ม
         const sprites = {
             pencil: [
                 [null, null, null, null, null, null, 0xef4444, 0xfca5a5],
@@ -199,6 +200,7 @@
                 [ 0x0f172a, 0xfde047, 0xf59e0b, null, null, null, null, null],
                 [0x0f172a,  0x0f172a, null, null, null, null, null, null]
             ],
+
             line: [
                 [null, null, null, null, null, null, null, 0x3b82f6],
                 [null, null, null, null, null, null, 0x3b82f6, null],
@@ -209,6 +211,7 @@
                 [null, 0x3b82f6, null, null, null, null, null, null],
                 [0x3b82f6, null, null, null, null, null, null, null]
             ],
+
             rect: [
                 [null, null, null, null, null, null, null, null],
                 [null, 0x10b981, 0x10b981, 0x10b981, 0x10b981, 0x10b981, 0x10b981, null],
@@ -219,6 +222,7 @@
                 [null, 0x10b981, 0x10b981, 0x10b981, 0x10b981, 0x10b981, 0x10b981, null],
                 [null, null, null, null, null, null, null, null]
             ],
+
             ellipse: [
                 [null, null, 0x8b5cf6, 0x8b5cf6, 0x8b5cf6, 0x8b5cf6, null, null],
                 [null, 0x8b5cf6, 0x8b5cf6, null, null, 0x8b5cf6, 0x8b5cf6, null],
@@ -229,6 +233,7 @@
                 [null, 0x8b5cf6, 0x8b5cf6, null, null, 0x8b5cf6, 0x8b5cf6, null],
                 [null, null, 0x8b5cf6, 0x8b5cf6, 0x8b5cf6, 0x8b5cf6, null, null]
             ],
+
             eraser: [
                 [null, null, null, null, null, null, null, null],
                 [null, null, 0xf43f5e, 0xf43f5e, 0xf43f5e, 0xf43f5e, null, null],
@@ -241,12 +246,10 @@
             ]
         };
 
-        // ฟังก์ชันวาด Sprite ลงบน Canvas ของปุ่ม
         function drawSpriteToCanvas(canvasId, spriteArray) {
             const canvas = document.getElementById(canvasId);
             const ctx = canvas.getContext('2d');
-            const pixelSize = canvas.width / 8; // ขนาด 8x8 block
-
+            const pixelSize = canvas.width / 8;
             for (let r = 0; r < 8; r++) {
                 for (let c = 0; c < 8; c++) {
                     const colorCode = spriteArray[r][c];
@@ -258,7 +261,6 @@
             }
         }
 
-        // วาดไอคอนปุ่มทั้งหมดเมื่อโหลดหน้าเว็บ
         window.onload = () => {
             drawSpriteToCanvas('icon-pencil', sprites.pencil);
             drawSpriteToCanvas('icon-line', sprites.line);
@@ -267,25 +269,121 @@
             drawSpriteToCanvas('icon-eraser', sprites.eraser);
         };
 
-        // --- 2. ระบบจัดการ State ของ Paint ---
+        // paint
         const canvas = document.getElementById('paintCanvas');
         const ctx = canvas.getContext('2d');
         const colorPicker = document.getElementById('colorPicker');
-        const sizeInput = document.getElementById('sizeInput'); // --- เปลี่ยนจาก sizeDisplay มาเป็น sizeInput ---
+        const sizeInput = document.getElementById('sizeInput');
 
         let currentTool = 'pencil';
         let currentColor = '#000000';
-        let currentSize = 5;
+        let currentSize = 1;
         let isDrawing = false;
         let startX = 0;
         let startY = 0;
-        let snapshot = null; // เก็บภาพก่อนลากรูปทรง
+        let lastX = 0;
+        let lastY = 0;
 
-        // ตั้งค่าเริ่มต้นพื้นหลังสีขาว
-        ctx.fillStyle = '#FFFFFF';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        let imageData = ctx.createImageData(canvas.width, canvas.height);
+        let pixels = imageData.data;
+        let snapshotPixels = new Uint8ClampedArray(pixels.length); // เก็บภาพชั่วคราว
 
-        // --- 3. ระบบเลือกเครื่องมือและปรับขนาด ---
+       
+        for (let i = 0; i < pixels.length; i += 4) {
+            pixels[i] = 255;     // R
+            pixels[i + 1] = 255; // G
+            pixels[i + 2] = 255; // B
+            pixels[i + 3] = 255; // A
+        }
+        ctx.putImageData(imageData, 0, 0);
+
+        // แปลง Hex เป็น RGB 
+        function hexToRgb(hex) {
+            const bigint = parseInt(hex.slice(1), 16);
+            return {
+                r: (bigint >> 16) & 255,
+                g: (bigint >> 8) & 255,
+                b: bigint & 255
+            };
+        }
+
+
+
+        // วาดพิกเซลลงใน Array
+        function putPixel(x, y, r, g, b, a = 255, size = 1) {
+            const half = Math.floor(size / 2);
+            // วาดเป็นบล็อกสี่เหลี่ยมตามขนาด
+            for (let dy = -half; dy < size - half; dy++) {
+                for (let dx = -half; dx < size - half; dx++) {
+                    const px = Math.floor(x + dx);
+                    const py = Math.floor(y + dy);
+                    // ตรวจสอบไม่ให้ออกนอกขอบจอ
+                    if (px >= 0 && px < canvas.width && py >= 0 && py < canvas.height) {
+                        const idx = (py * canvas.width + px) * 4;
+                        pixels[idx] = r;
+                        pixels[idx + 1] = g;
+                        pixels[idx + 2] = b;
+                        pixels[idx + 3] = a;
+                    }
+                }
+            }
+        }
+
+        // วาดเส้นตรง
+        function drawLine(x1, y1, x2, y2, r, g, b, a = 255, size = 1) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const absDx = Math.abs(dx);
+            const absDy = Math.abs(dy);
+
+            if (absDx === 0 && absDy === 0) {
+                putPixel(x1, y1, r, g, b, a, size);
+                return;
+            }
+
+            if (absDx > absDy) {
+                const m = dy / dx;
+                const c = y1 - m * x1;
+                const start = Math.min(x1, x2);
+                const end = Math.max(x1, x2);
+                for (let x = start; x <= end; x++) {
+                    const y = Math.round(m * x + c);
+                    putPixel(x, y, r, g, b, a, size);
+                }
+            } else {
+                const m = dx / dy;
+                const c = x1 - m * y1;
+                const start = Math.min(y1, y2);
+                const end = Math.max(y1, y2);
+                for (let y = start; y <= end; y++) {
+                    const x = Math.round(m * y + c);
+                    putPixel(x, y, r, g, b, a, size);
+                }
+            }
+        }
+
+        // วาดสี่เหลี่ยม
+        function drawRect(x1, y1, x2, y2, r, g, b, a = 255, size = 1) {
+            drawLine(x1, y1, x2, y1, r, g, b, a, size); // บน
+            drawLine(x2, y1, x2, y2, r, g, b, a, size); // ขวา
+            drawLine(x2, y2, x1, y2, r, g, b, a, size); // ล่าง
+            drawLine(x1, y2, x1, y1, r, g, b, a, size); // ซ้าย
+        }
+
+        // วาดวงรี/วงกลม
+        function drawEllipse(cx, cy, rx, ry, rColor, gColor, bColor, a = 255, size = 1) {
+            if (rx === 0 && ry === 0) return;
+            const perimeter = Math.PI * 2 * Math.max(rx, ry);
+            const step = 1 / perimeter; 
+            for (let t = 0; t < Math.PI * 2; t += step) {
+                const x = Math.round(cx + rx * Math.cos(t));
+                const y = Math.round(cy + ry * Math.sin(t));
+                putPixel(x, y, rColor, gColor, bColor, a, size);
+            }
+        }
+
+        // ปุ่มกด
         function selectTool(tool) {
             currentTool = tool;
             document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
@@ -296,107 +394,79 @@
             currentColor = e.target.value;
         });
 
-        // --- ปรับปรุงฟังก์ชันปรับขนาดให้เชื่อมกับ Input ---
         function adjustSize(delta) {
             currentSize = Math.max(1, Math.min(100, currentSize + delta));
             sizeInput.value = currentSize;
         }
 
-        // --- เพิ่ม Event รับค่าเมื่อผู้ใช้พิมพ์ตัวเลขลงไปตรงๆ ---
         sizeInput.addEventListener('input', (e) => {
             const val = parseInt(e.target.value, 10);
-            if (!isNaN(val) && val >= 1) {
-                currentSize = Math.min(100, val);
-            }
+            if (!isNaN(val) && val >= 1) currentSize = Math.min(100, val);
         });
 
-        sizeInput.addEventListener('blur', () => {
-            if (!sizeInput.value || parseInt(sizeInput.value, 10) < 1) {
-                currentSize = 1;
-                sizeInput.value = currentSize;
-            }
-        });
-
-        // --- 4. ระบบคีย์ลัดบน Keyboard ---
         window.addEventListener('keydown', (e) => {
-            if (e.target.tagName === 'INPUT') return; // ป้องกันตอนพิมพ์ในช่อง input อื่นๆ
-
+            if (e.target.tagName === 'INPUT') return;
             switch(e.key.toLowerCase()) {
                 case 'p': selectTool('pencil'); break;
                 case 'l': selectTool('line'); break;
                 case 'r': selectTool('rect'); break;
                 case 'o': selectTool('ellipse'); break;
                 case 'e': selectTool('eraser'); break;
-                case '+':
-                case '=': adjustSize(1); break;
-                case '-':
-                case '_': adjustSize(-1); break;
+                case '+': case '=': adjustSize(1); break;
+                case '-': case '_': adjustSize(-1); break;
             }
         });
-
-        // --- 5. ระบบการวาดภาพบน Canvas ---
+        
         function getMousePos(e) {
             const rect = canvas.getBoundingClientRect();
             return {
-                x: e.clientX - rect.left,
-                y: e.clientY - rect.top
+                x: Math.floor(e.clientX - rect.left),
+                y: Math.floor(e.clientY - rect.top)
             };
         }
 
         canvas.addEventListener('mousedown', (e) => {
             isDrawing = true;
             const pos = getMousePos(e);
-            startX = pos.x;
-            startY = pos.y;
+            startX = pos.x; startY = pos.y;
+            lastX = pos.x; lastY = pos.y;
 
-            ctx.beginPath();
-            ctx.lineWidth = currentSize;
-            ctx.lineCap = 'round';
-            ctx.lineJoin = 'round';
-            
-            if (currentTool === 'eraser') {
-                ctx.strokeStyle = '#FFFFFF'; // ยางลบใช้สีขาวทับ
-            } else {
-                ctx.strokeStyle = currentColor;
-            }
+            snapshotPixels.set(pixels);
 
-            // บันทึกภาพหน้าจอก่อนวาดรูปทรง (เส้น, สี่เหลี่ยม, วงรี)
-            if (['line', 'rect', 'ellipse'].includes(currentTool)) {
-                snapshot = ctx.getImageData(0, 0, canvas.width, canvas.height);
-            } else {
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(startX, startY);
-                ctx.stroke();
+            let color = currentTool === 'eraser' ? {r: 255, g: 255, b: 255} : hexToRgb(currentColor);
+
+            if (currentTool === 'pencil' || currentTool === 'eraser') {
+                putPixel(startX, startY, color.r, color.g, color.b, 255, currentSize);
+                ctx.putImageData(imageData, 0, 0); // Render ออกจอ
             }
         });
 
         canvas.addEventListener('mousemove', (e) => {
             if (!isDrawing) return;
             const pos = getMousePos(e);
+            let color = currentTool === 'eraser' ? {r: 255, g: 255, b: 255} : hexToRgb(currentColor);
 
             if (currentTool === 'pencil' || currentTool === 'eraser') {
-                ctx.lineTo(pos.x, pos.y);
-                ctx.stroke();
-            } else if (['line', 'rect', 'ellipse'].includes(currentTool)) {
-                // คืนค่าภาพเดิมก่อนจะวาดรูปร่างใหม่ที่ตำแหน่งเมาส์ปัจจุบัน
-                ctx.putImageData(snapshot, 0, 0);
-                ctx.beginPath();
+                drawLine(lastX, lastY, pos.x, pos.y, color.r, color.g, color.b, 255, currentSize);
+                ctx.putImageData(imageData, 0, 0);
+                lastX = pos.x;
+                lastY = pos.y;
+            } 
+            else if (['line', 'rect', 'ellipse'].includes(currentTool)) {
+                pixels.set(snapshotPixels);
 
                 if (currentTool === 'line') {
-                    ctx.moveTo(startX, startY);
-                    ctx.lineTo(pos.x, pos.y);
+                    drawLine(startX, startY, pos.x, pos.y, color.r, color.g, color.b, 255, currentSize);
                 } else if (currentTool === 'rect') {
-                    const width = pos.x - startX;
-                    const height = pos.y - startY;
-                    ctx.rect(startX, startY, width, height);
+                    drawRect(startX, startY, pos.x, pos.y, color.r, color.g, color.b, 255, currentSize);
                 } else if (currentTool === 'ellipse') {
-                    const radiusX = Math.abs((pos.x - startX) / 2);
-                    const radiusY = Math.abs((pos.y - startY) / 2);
-                    const centerX = startX + (pos.x - startX) / 2;
-                    const centerY = startY + (pos.y - startY) / 2;
-                    ctx.ellipse(centerX, centerY, radiusX, radiusY, 0, 0, 2 * Math.PI);
+                    const rx = Math.abs(pos.x - startX) / 2;
+                    const ry = Math.abs(pos.y - startY) / 2;
+                    const cx = startX + (pos.x - startX) / 2;
+                    const cy = startY + (pos.y - startY) / 2;
+                    drawEllipse(cx, cy, rx, ry, color.r, color.g, color.b, 255, currentSize);
                 }
-                ctx.stroke();
+                ctx.putImageData(imageData, 0, 0); // Render ออกจอ
             }
         });
 
