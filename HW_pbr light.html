@@ -50,11 +50,15 @@
         const scene = new THREE.Scene();
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, 5, 10);
-        camera.lookAt(0, 0, 0);
+        camera.position.set(0, 8, 15);
+        //camera.lookAt(0, 0, 0);
         
         //ระบบควบคุม (Controls)
         const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+
+        orbitControls.target.set(0, 5, 0);
+        orbitControls.update();
+
         const transformControl = new THREE.TransformControls(camera, renderer.domElement);
         
         // ปิดการหมุนกล้อง(Orbit) เวลาที่เรากำลังเอาเมาส์คลิกลากดวงไฟอยู่
@@ -170,10 +174,11 @@
         scene.add(plane);
 
         //โมเดล
+        let model;
         const loader = new THREE.GLTFLoader();
         loader.load('https://nichapa67.github.io/nichapa.github.io/magnet2.glb', (gltf) => {
         //loader.load('https://nichapa67.github.io/nichapa.github.io/cyber.glb', (gltf) => {
-            const model = gltf.scene;
+            model = gltf.scene;
             model.traverse((child) => {
                 if (child.isMesh) {
                     child.castShadow = true;
@@ -184,16 +189,20 @@
             model.scale.set(4, 4, 4);
             model.position.set(0, 5, 2);
             //model.scale.set(2, 2, 2);
+            //model.rotation.y = Math.PI / 2;
             scene.add(model);
         });
 
-        // --- Animation Loop ---
-        function animate() {
-            orbitControls.update();
+        function animate(t) {
+            if (model) {
+                model.rotation.y += 0.01; // ปรับความเร็วการหมุน
+            }
+
+            orbitControls.update()
             renderer.render(scene, camera);
             requestAnimationFrame(animate);
         }
-        animate();
+        animate(0);
 
         // Responsive
         window.addEventListener('resize', () => {
