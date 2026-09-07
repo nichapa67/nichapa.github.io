@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Interactive Light</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            font-family: sans-serif;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- ข้อความอธิบายบนหน้าจอ -->
+    <div id="info">
+        <p>- ใช้เมาส์ลากแกน (ลูกศร) ที่ดวงไฟเพื่อย้ายตำแหน่งแบบ 3D</p>
+        <p>- คลิกซ้ายพื้นที่ว่างค้างไว้เพื่อหมุนมุมกล้อง</p>
+    </div>
+
+    <!-- core three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+    <!-- เพิ่ม TransformControls สำหรับใช้เมาส์ลากวัตถุ (ดวงไฟ) ในฉาก -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TransformControls.js"></script>
+    <!-- dat.gui สำหรับสร้างเมนูควบคุม -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dat-gui/0.7.9/dat.gui.min.js"></script>
+
+    <script>
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderer.toneMappingExposure = 1.0;
+        document.body.appendChild(renderer.domElement);
+
+        const scene = new THREE.Scene();
+
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, 5, 10);
+        camera.lookAt(0, 0, 0);
+        
+        //ระบบควบคุม (Controls)
+        const orbitControls = new THREE.OrbitControls(camera, renderer.domElement);
+        const transformControl = new THREE.TransformControls(camera, renderer.domElement);
+        
+        // ปิดการหมุนกล้อง(Orbit) เวลาที่เรากำลังเอาเมาส์คลิกลากดวงไฟอยู่
+        transformControl.addEventListener('dragging-changed', function (event) {
+            orbitControls.enabled = !event.value;
+        });
+        scene.add(transformControl);
+
+        //สถานะสำหรับ GUI เริ่มต้น
+        const params = {
+            lightType: 'Point',
+            color: '#ffffff', //สีไฟเริ่มต้นขาว
+            intensity: 2.0,
+            x: 0, y: 12, z: 5
+        };
+
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+        scene.add(ambientLight);
+
+        //สร้างแหล่งกำเนิดแสง
+        const lightBulbGeo = new THREE.SphereGeometry(0.5, 16, 16);
+        const lightBulbMat = new THREE.MeshBasicMaterial({ color: params.color });
+        const lightBulbMesh = new THREE.Mesh(lightBulbGeo, lightBulbMat);
+        lightBulbMesh.position.set(params.x, params.y, params.z);
+        scene.add(lightBulbMesh);
+
+        transformControl.attach(lightBulbMesh);
+
+        const pointLight = new THREE.PointLight(params.color, params.intensity, 50);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        const dirLight = new THREE.DirectionalLight(params.color, params.intensity);
+        dirLight.castShadow = true;
+        dirLight.visible = false;
+        scene.add(dirLight);
+
+        const spotLight = new THREE.SpotLight(params.color, params.intensity, 50, Math.PI / 4, 0.5, 1);
+        spotLight.castShadow = true;
+        spotLight.visible = false;
+        scene.add(spotLight);
+
+        const gui = new dat.GUI({ width: 320 });
+
+        function updateLightPosition() {
+            pointLight.position.copy(lightBulbMesh.position);
+            dirLight.position.copy(lightBulbMesh.position);
+            spotLight.position.copy(lightBulbMesh.position);
+            
+            params.x = lightBulbMesh.position.x;
+            params.y = lightBulbMesh.position.y;
+            params.z = lightBulbMesh.position.z;
+            gui.updateDisplay();
+        }
+        
+        transformControl.addEventListener('change', updateLightPosition);
+        updateLightPosition();
+
+
+        //ที่บังควบคุม GUI สำหรับปรับแต่งแสง
+        const lightFolder = gui.addFolder('💡 Light Controls');
+        lightFolder.add(params, 'lightType', ['Point', 'Directional', 'Spot']).name('Light Type').onChange(v => {
+            pointLight.visible = (v === 'Point');
+            dirLight.visible = (v === 'Directional');
+            spotLight.visible = (v === 'Spot');
+        });
+        
+        lightFolder.addColor(params, 'color').name('Color (RGB)').onChange(c => {
+            lightBulbMat.color.set(c);
+            pointLight.color.set(c);
+            dirLight.color.set(c);
+            spotLight.color.set(c);
+        });
+        
+        lightFolder.add(params, 'intensity', 0, 10).name('Intensity').onChange(v => {
+            pointLight.intensity = v;
+            dirLight.intensity = v;
+            spotLight.intensity = v;
+        });
+        
+        const posChange = () => { lightBulbMesh.position.set(params.x, params.y, params.z); updateLightPosition(); };
+        lightFolder.add(params, 'x', -15, 15).name('Position X').onChange(posChange);
+        lightFolder.add(params, 'y', 1, 15).name('Position Y').onChange(posChange);
+        lightFolder.add(params, 'z', -15, 15).name('Position Z').onChange(posChange);
+        lightFolder.open();
+
+        //ฉาก skybox
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/ferndale_studio_12_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType)
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox;
+                texture.dispose();
+                pmremGenerator.dispose();
+            });
+
+        //พื้น
+        const texFloor = new THREE.TextureLoader().load('https://sibsansuk.github.io/mossy_cobblestone_diff_1k.jpg');
+        const matFloor = new THREE.MeshStandardMaterial({ 
+            map: texFloor,
+            side: THREE.DoubleSide,
+            roughness: 0.9,
+            metalness: 0.0
+        });
+        const plane = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), matFloor);
+        plane.rotation.x = -Math.PI / 2; 
+        plane.receiveShadow = true;
+        scene.add(plane);
+
+        //โมเดล
+        const loader = new THREE.GLTFLoader();
+        loader.load('https://nichapa67.github.io/nichapa.github.io/magnet2.glb', (gltf) => {
+        //loader.load('https://nichapa67.github.io/nichapa.github.io/cyber.glb', (gltf) => {
+            const model = gltf.scene;
+            model.traverse((child) => {
+                if (child.isMesh) {
+                    child.castShadow = true;
+                    child.receiveShadow = true;
+                }
+            });
+            //model.position.set(0, 1, 2);
+            model.scale.set(4, 4, 4);
+            model.position.set(0, 5, 2);
+            //model.scale.set(2, 2, 2);
+            scene.add(model);
+        });
+
+        // --- Animation Loop ---
+        function animate() {
+            orbitControls.update();
+            renderer.render(scene, camera);
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // Responsive
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>
