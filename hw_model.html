@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>3D Model Viewer with Custom Lighting</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #aae8ff; /* สีพื้นหลังระหว่างรอโหลด Skybox */
+        }
+        
+        /* สไตล์สำหรับข้อความกำลังโหลด */
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: sans-serif;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- Core Three.js -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+
+    <script>
+        // 1. ตั้งค่า Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; // เปิดการใช้งาน Shadow
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap; // ให้เงานุ่มนวล
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; // ช่วยปรับสมดุลแสงให้สมจริง (สำคัญมากเมื่อใช้ EXR)
+        document.body.appendChild(renderer.domElement);
+
+        // 2. สร้าง Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaae8ff);
+
+        // 3. ตั้งค่า Camera & Controls
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2, 3, 5); // ปรับมุมมองกล้องเริ่มต้นให้เห็นโมเดลชัดๆ
+        camera.lookAt(0, 1, 0);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // ทำให้การหมุนสมูทขึ้น
+        controls.target.set(0, 1, 0); // จุดหมุนของกล้อง
+
+        const pointLight = new THREE.PointLight(0xffffff, 0.5, 100); 
+        pointLight.position.set(0, 2, 3);
+        pointLight.castShadow = true;
+        scene.add(pointLight);
+
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1); 
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        scene.add(directionalLight);
+
+
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/venice_sunset_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.UnsignedByteType) // ใน Three.js รุ่นใหม่ใช้ FloatType หรือ HalfFloatType จะดีกว่า แต่ตามโค้ดเดิมใช้ UnsignedByteType 
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox; // แสงนี้จะช่วยให้โมเดลมี Shading ที่สมจริงมาก
+
+                texture.dispose();
+                pmremGenerator.dispose();
+            });
+
+        let myModel;
+        const gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load('https://nichapa67.github.io/nichapa.github.io/mymodel1.glb', 
+            (gltf) => {
+                myModel = gltf.scene;
+                
+                myModel.rotation.y = -Math.PI / 2;
+                
+                // จัดการเรื่องเงาให้โมเดลทุกชิ้นส่วน
+                myModel.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+                    }
+                });
+
+                scene.add(myModel);
+
+                // ซ่อนข้อความ Loading
+                document.getElementById('loading').style.display = 'none';
+            }, 
+            undefined, 
+            (error) => {
+                console.error('Error loading GLB:', error);
+                document.getElementById('loading').innerText = 'Error loading model';
+            }
+        );
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+            controls.update(); // อัปเดตเมาส์
+
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 9. Resize Handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
