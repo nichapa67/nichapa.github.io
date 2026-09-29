@@ -190,13 +190,13 @@
 
         // Scene & Camera
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xaae8ff);
+        scene.background = new THREE.Color(0x867a96);
         scene.add(directionalLight);
 
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         
-        const defaultCameraPos = new THREE.Vector3(2, 3, 5);
-        const defaultLookAt = new THREE.Vector3(0, 1, 0);
+        const defaultCameraPos = new THREE.Vector3(1.5, 6.6, 15.5);
+        const defaultLookAt = new THREE.Vector3(0.8, 5.0, 0);
         
         let targetCameraPos = defaultCameraPos.clone();
         let targetLookAt = defaultLookAt.clone();
@@ -252,6 +252,7 @@
 
         // โหลดโมเดล
         let myModel;
+        let mixer;
         const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('https://nichapa67.github.io/nichapa.github.io/mymodel_web.glb', 
             (gltf) => {
@@ -260,7 +261,20 @@
                 scene.add(myModel);
 
                 myModel.updateMatrixWorld(true);
-                
+
+                if (gltf.animations && gltf.animations.length > 0) {
+                    mixer = new THREE.AnimationMixer(myModel);
+
+                    const clip1 = THREE.AnimationClip.findByName(gltf.animations, 'Action');
+                    if (clip1) mixer.clipAction(clip1).play();
+
+                    const clip2 = THREE.AnimationClip.findByName(gltf.animations, 'clock1');
+                    if (clip2) mixer.clipAction(clip2).play();
+
+                    const clip3 = THREE.AnimationClip.findByName(gltf.animations, 'clock2');
+                    if (clip3) mixer.clipAction(clip3).play();
+                }
+
                 const fixTexture = (tex) => {
                     if (tex) {
                         tex.minFilter = THREE.LinearMipmapLinearFilter;
@@ -284,6 +298,17 @@
                     }
                     if (cleanName === 'plane003' || (cleanName === 'plane' && node.parent && node.parent.name.toLowerCase().includes('003'))) {
                         targetPlanes['boardproject'] = node;
+                    }
+                    if (cleanName === 'plane003' || cleanName === 'plane004') {
+                        node.castShadow = false;    // ปิดการสร้างเงา
+                        node.receiveShadow = false; // ปิดการรับเงา เพื่อไม่ให้มืด
+
+                        if (node.material && node.material.map) {
+                            node.material = new THREE.MeshBasicMaterial({
+                                map: node.material.map,
+                                side: THREE.DoubleSide
+                            });
+                        }
                     }
 
                     if (node.isMesh) {
@@ -369,6 +394,16 @@
             raycaster.setFromCamera(mouse, camera);
 
             const intersects = raycaster.intersectObjects(myModel.children, true);
+            if (intersects.length === 0) return;
+
+            // คลิกที่หน้าจอแล็ปท็อปเพื่อเปิดลิงก์
+            for (let i = 0; i < intersects.length; i++) {
+                const objName = intersects[i].object.name.toLowerCase().replace(/[\._\s]/g, '');
+                if (objName === 'plane003' || objName === 'plane') {
+                    window.open('https://nichapa67.github.io/nichapa.github.io/', '_blank');
+                    return;
+                }
+            }
 
             let hitBoardKey = null;
 
@@ -388,24 +423,25 @@
                 const targetNode = targetPlanes[hitBoardKey];
                 if (targetNode) {
                     targetNode.updateWorldMatrix(true, false);
-
                     const box = new THREE.Box3().setFromObject(targetNode);
                     const centerPos = new THREE.Vector3();
                     box.getCenter(centerPos);
 
                     targetLookAt.copy(centerPos);
 
-                    // ปรับตำแหน่งการยืนของกล้อง
-                    if (hitBoardKey === 'boardskill' || hitBoardKey === 'boardproject') {
-                        // ปรับระยะด้านหน้ากรอบรูปสำหรับ 003 และ 004
-                        targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z - 1.2);
-                    } else {
-                        // ป้าย boardme
-                        const offsetDir = camera.position.clone().sub(centerPos).normalize();
-                        targetCameraPos.copy(centerPos).add(offsetDir.multiplyScalar(2.0));
-                    }
+                    const targetQuaternion = new THREE.Quaternion();
+                    targetNode.getWorldQuaternion(targetQuaternion);
 
-                    targetCameraPos.y = centerPos.y; 
+                    if (hitBoardKey === 'boardproject') {
+                        targetCameraPos.set(-6.850, 3.905, 2.450);
+                        targetLookAt.set(-6.523, 3.624, 3.427);
+                    } 
+                    else if (hitBoardKey === 'boardme') {
+                        targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z + 2.0);
+                    } 
+                    else if (hitBoardKey === 'boardskill') {
+                        targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z - 1.3);
+                    }
 
                     isMovingCamera = true;
                     controls.enabled = false;
@@ -429,7 +465,12 @@
         function animate() {
             requestAnimationFrame(animate);
 
+            const delta = clock.getDelta();
             const elapsedTime = clock.getElapsedTime();
+
+            if (mixer) {
+                mixer.update(delta);
+            }
 
             if (myModel) {
                 myModel.traverse((node) => {
