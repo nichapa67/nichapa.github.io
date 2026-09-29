@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Interactive 3D Portfolio</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: #aae8ff;
+        }
+        
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-family: sans-serif;
+            color: white;
+            background: rgba(0,0,0,0.7);
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 10;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="loading">Loading Model...</div>
+
+    <!-- Core Three.js -->
+    <video id="myVideo" src="coffee.mp4" loop muted playsinline style="display:none;"></video>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/GLTFLoader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/EXRLoader.js"></script>
+
+    <script>
+        // 1. ตั้งค่า Renderer
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.shadowMap.enabled = true; 
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping; 
+        renderer.toneMappingExposure = 1.0;
+        document.body.appendChild(renderer.domElement);
+
+        // --- 1. Shader ของแมว (Cel Shading) ---
+        const toonVertexShader = `
+            varying vec3 vNormal;
+            varying vec3 vWorldPosition;
+            varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+                vNormal = normalize(normalMatrix * normal);
+                vec4 worldPosition = modelMatrix * vec4(position, 1.0);
+                vWorldPosition = worldPosition.xyz;
+                gl_Position = projectionMatrix * viewMatrix * worldPosition;
+            }
+        `;
+
+        const toonFragmentShader = `
+            uniform sampler2D uTexture;
+            uniform int uHasTexture;
+            uniform vec3 uBaseColor;
+            uniform vec3 uLightPosition;
+            
+            varying vec3 vNormal;
+            varying vec3 vWorldPosition;
+            varying vec2 vUv;
+
+            void main() {
+                vec3 lightDirection = normalize(uLightPosition - vWorldPosition);
+                float diffuse = max(dot(vNormal, lightDirection), 0.0);
+                
+                float step1 = smoothstep(0.2, 0.25, diffuse) * 0.4;
+                float step2 = smoothstep(0.6, 0.65, diffuse) * 0.6;
+                diffuse = step1 + step2;
+                
+                float lightIntensity = clamp(diffuse + 0.35, 0.0, 1.0);
+                
+                vec4 texColor = vec4(uBaseColor, 1.0);
+                if (uHasTexture == 1) {
+                    texColor = texture2D(uTexture, vUv);
+                }
+                
+                gl_FragColor = vec4(texColor.rgb * lightIntensity, texColor.a);
+            }
+        `;
+
+        // --- 2. Shader ของปลาทอง (ว่ายน้ำ ลอยขึ้นลง) ---
+        const fishVertexShader = `
+            uniform float uTime;
+            varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+
+                // ลอยขึ้น-ลง นุ่มนวล
+                pos.y += sin(uTime * 2.0) * 1.5;
+                // ขยับสะบัดหาง
+                pos.x += sin(pos.z * 3.0 + uTime * 4.0) * 0.5;
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const fishFragmentShader = `
+            uniform sampler2D uTexture;
+            uniform int uHasTexture;
+            uniform vec3 uColor;
+            varying vec2 vUv;
+
+            void main() {
+                vec4 color = vec4(uColor, 1.0);
+                if (uHasTexture == 1) {
+                    color = texture2D(uTexture, vUv);
+                }
+                gl_FragColor = color;
+            }
+        `;
+
+        const fishShaderMaterial = new THREE.ShaderMaterial({
+            vertexShader: fishVertexShader,
+            fragmentShader: fishFragmentShader,
+            uniforms: {
+                uTime: { value: 0.0 },
+                uTexture: { value: null },
+                uHasTexture: { value: 0 },
+                uColor: { value: new THREE.Color(0xff7700) }
+            },
+            side: THREE.DoubleSide
+        });
+
+        // --- 3. Shader ของสาหร่าย (พัดพลิ้วตามกระแสน้ำ โคนติดพื้น ยอดขยับ) ---
+        const seaweedVertexShader = `
+            uniform float uTime;
+            varying vec2 vUv;
+
+            void main() {
+                vUv = uv;
+                vec3 pos = position;
+
+                // vUv.y คือความสูงของใบ (0.0 = โคนต้น, 1.0 = ยอดใบ)
+                // นำ vUv.y มายกกำลัง 2 เพื่อให้โคนนิ่งสนิท และยอดสะบัดสวยงาม
+                float swayStrength = pow(uv.y, 1.5) * 0.8;
+
+                // คลื่นพลิ้วไปข้างหน้า-หลัง และเอียงซ้าย-ขวา
+                pos.x += sin(uTime * 2.5 + pos.y * 3.0) * swayStrength;
+                pos.z += cos(uTime * 1.8 + pos.y * 2.0) * (swayStrength * 0.5);
+
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(pos, 1.0);
+            }
+        `;
+
+        const seaweedShaderMaterial = new THREE.ShaderMaterial({
+            vertexShader: seaweedVertexShader,
+            fragmentShader: fishFragmentShader, // ใช้ Fragment เดียวกันเพื่อดึง Texture/สีเขียวเดิม
+            uniforms: {
+                uTime: { value: 0.0 },
+                uTexture: { value: null },
+                uHasTexture: { value: 0 },
+                uColor: { value: new THREE.Color(0x2e8b57) }
+            },
+            side: THREE.DoubleSide
+        });
+
+        // แสง Directional Light
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 3); 
+        directionalLight.position.set(5, 5, 5);
+        directionalLight.castShadow = true;
+        directionalLight.shadow.mapSize.width = 2048; 
+        directionalLight.shadow.mapSize.height = 2048;
+        directionalLight.shadow.bias = -0.0001; 
+        directionalLight.shadow.normalBias = 0.02; 
+
+        // Material แมว
+        const customCatToonMaterial = new THREE.ShaderMaterial({
+            vertexShader: toonVertexShader,
+            fragmentShader: toonFragmentShader,
+            uniforms: {
+                uTexture: { value: null },
+                uHasTexture: { value: 0 },
+                uBaseColor: { value: new THREE.Color(0xffffff) },
+                uLightPosition: { value: directionalLight.position }
+            }
+        });
+
+        // 2. สร้าง Scene
+        const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xaae8ff);
+        scene.add(directionalLight);
+
+        // 3. ตั้งค่า Camera & Controls
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(2, 3, 5); 
+        camera.lookAt(0, 1, 0);
+        
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; 
+        controls.target.set(0, 1, 0); 
+
+        // 5. โหลด Environment (EXR)
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/venice_sunset_1k.exr';
+        const pmremGenerator = new THREE.PMREMGenerator(renderer);
+        pmremGenerator.compileEquirectangularShader();
+
+        new THREE.EXRLoader()
+            .setDataType(THREE.FloatType) 
+            .load(exrSkyboxUrl, (texture) => {
+                const skybox = pmremGenerator.fromEquirectangular(texture).texture;
+                scene.background = skybox;
+                scene.environment = skybox; 
+                texture.dispose();
+                pmremGenerator.dispose();
+            });
+
+        // ดึง Video Element มาสร้าง VideoTexture
+        const video = document.getElementById('myVideo');
+        video.play(); // สั่งให้วิดีโอเริ่มเล่น
+
+        const videoTexture = new THREE.VideoTexture(video);
+        videoTexture.minFilter = THREE.LinearFilter;
+        videoTexture.magFilter = THREE.LinearFilter;
+        videoTexture.format = THREE.RGBAFormat;
+
+        // ปรับทิศทางของวิดีโอไม่ให้กลับหัว
+        videoTexture.flipY = false;
+
+        // 6. โหลดโมเดล
+        let myModel;
+        const gltfLoader = new THREE.GLTFLoader();
+        gltfLoader.load('https://nichapa67.github.io/nichapa.github.io/mymodel_web.glb', 
+            (gltf) => {
+                myModel = gltf.scene;
+                myModel.rotation.y = -Math.PI / 2;
+                
+                const fixTexture = (tex) => {
+                    if (tex) {
+                        tex.minFilter = THREE.LinearMipmapLinearFilter;
+                        tex.magFilter = THREE.LinearFilter;
+                        tex.generateMipmaps = true;
+                        tex.needsUpdate = true;
+                    }
+                };
+
+                myModel.traverse((node) => {
+                    if (node.isMesh) {
+                        node.castShadow = true;
+                        node.receiveShadow = true;
+
+                        const nameLower = node.name.toLowerCase();
+
+                        // ตรวจหาชิ้นส่วนรูปภาพ/กรอบรูป
+                       if (node.name === 'Plane' || node.name === 'Plane.008') {
+                            node.material = new THREE.MeshStandardMaterial({
+                                map: videoTexture,
+                                roughness: 0.2,
+                                metalness: 0.1,
+                                side: THREE.DoubleSide
+                            });
+                        }
+
+                        // 1. จัดการตู้ปลาและน้ำ ไม่ให้บังสิ่งที่อยู่ข้างใน (แก้ปัญหาปลาหาย)
+                        if (nameLower.includes('agua') || nameLower.includes('aquario') || nameLower.includes('water')) {
+                            node.material.transparent = true;
+                            node.material.depthWrite = false; 
+                            node.renderOrder = 1; 
+                        }
+
+                        // 2. จัดการสาหร่าย (algas) ให้พลิ้วไหว
+                        else if (nameLower.includes('alga') || nameLower.includes('seaweed')) {
+                            node.renderOrder = 0;
+                            const oldMat = node.material;
+                            const weedMat = seaweedShaderMaterial.clone();
+
+                            if (oldMat && oldMat.map) {
+                                weedMat.uniforms.uTexture.value = oldMat.map;
+                                weedMat.uniforms.uHasTexture.value = 1;
+                            } else if (oldMat && oldMat.color) {
+                                weedMat.uniforms.uColor.value.copy(oldMat.color);
+                            }
+                            node.material = weedMat;
+                        }
+
+                        // 3. จัดการปลาทอง (peixe / goldfish) ให้ว่ายน้ำ
+                        else if (nameLower.includes('peixe') || nameLower.includes('goldfish') || nameLower.includes('fish')) {
+                            node.renderOrder = 0;
+                            const oldMat = node.material;
+                            const fishMat = fishShaderMaterial.clone();
+
+                            if (oldMat && oldMat.map) {
+                                fishMat.uniforms.uTexture.value = oldMat.map;
+                                fishMat.uniforms.uHasTexture.value = 1;
+                            } else if (oldMat && oldMat.color) {
+                                fishMat.uniforms.uColor.value.copy(oldMat.color);
+                            }
+                            node.material = fishMat;
+                            
+                        } 
+                        // 4. จัดการแมว (Cat) ทำ Cel Shading
+                        else if (node.name.includes('Cat')) {
+                            const oldMat = node.material;
+                            const catMat = customCatToonMaterial.clone();
+                            if (oldMat && oldMat.map) {
+                                catMat.uniforms.uTexture.value = oldMat.map;
+                                catMat.uniforms.uHasTexture.value = 1;
+                            } else if (oldMat && oldMat.color) {
+                                catMat.uniforms.uBaseColor.value.copy(oldMat.color);
+                                catMat.uniforms.uHasTexture.value = 0;
+                            }
+                            node.material = catMat;
+
+                        } else if (node.material) {
+                            fixTexture(node.material.map);
+                            fixTexture(node.material.normalMap);
+                            fixTexture(node.material.roughnessMap);
+                        }
+                    }
+                });
+
+                scene.add(myModel);
+
+                const loadingElem = document.getElementById('loading');
+                if (loadingElem) loadingElem.style.display = 'none';
+            }, 
+            undefined, 
+            (error) => {
+                console.error('Error loading GLB:', error);
+                const loadingElem = document.getElementById('loading');
+                if (loadingElem) loadingElem.innerText = 'Error loading model';
+            }
+        );
+
+        const clock = new THREE.Clock();
+
+        // 7. Render Loop
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const elapsedTime = clock.getElapsedTime();
+
+            // ส่งค่าเวลาไปยัง Vertex Shader ของทั้งปลาและสาหร่าย
+            if (myModel) {
+                myModel.traverse((node) => {
+                    if (node.isMesh && node.material && node.material.uniforms && node.material.uniforms.uTime) {
+                        node.material.uniforms.uTime.value = elapsedTime;
+                    }
+                });
+            }
+
+            controls.update(); 
+            renderer.render(scene, camera);
+        }
+        animate();
+
+        // 8. Resize Handling
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+
+</html>
