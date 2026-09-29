@@ -7,7 +7,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #88a0f0;
+            background-color: #867a96;
         }
         
         #loading {
@@ -169,7 +169,7 @@
             side: THREE.DoubleSide
         });
 
-        const directionalLight = new THREE.DirectionalLight(0xffffff, 3); 
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 2); 
         directionalLight.position.set(5, 5, 5);
         directionalLight.castShadow = true;
         directionalLight.shadow.mapSize.width = 2048; 
@@ -316,6 +316,9 @@
                     if (cleanName === 'plane007' || cleanName.includes('picture3001') || rawName.includes('Picture3.001')) {
                         targetPlanes['picture3'] = node;
                     }
+                    if (nameLower.includes('aqua') || cleanName.includes('aquario')) {
+                        targetPlanes['fishbowl'] = node;
+                    }
 
                     if (node.isMesh) {
                         node.castShadow = true;
@@ -426,6 +429,10 @@
                         hitBoardKey = 'picture3'; 
                         break; 
                     }
+                    if (n.includes('aqua') || cleanN.includes('aquario')) {
+                        hitBoardKey = 'fishbowl';
+                        break;
+                    }
 
                     cur = cur.parent;
                 }
@@ -460,6 +467,9 @@
                     }
                     else if (hitBoardKey === 'picture3') {
                         targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z + 1.5);
+                    }
+                    else if (hitBoardKey === 'fishbowl') {
+                        targetCameraPos.set(centerPos.x, centerPos.y + 0.35, centerPos.z + 1.1);
                     }
 
                     isMovingCamera = true;
