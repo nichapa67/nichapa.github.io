@@ -310,6 +310,12 @@
                             });
                         }
                     }
+                    if (nameLower.includes('cat') || cleanName ==='cat_Material.001_0') {
+                        targetPlanes['cat'] = node;
+                    }
+                    if (cleanName === 'plane007' || cleanName.includes('picture3001') || rawName.includes('Picture3.001')) {
+                        targetPlanes['picture3'] = node;
+                    }
 
                     if (node.isMesh) {
                         node.castShadow = true;
@@ -411,9 +417,16 @@
                 let cur = intersects[i].object;
                 while (cur && cur !== myModel) {
                     const n = cur.name.toLowerCase();
+                    const cleanN = n.replace(/[\._\s]/g, '');
                     if (n.includes('boardskill')) { hitBoardKey = 'boardskill'; break; }
                     if (n.includes('boardme')) { hitBoardKey = 'boardme'; break; }
                     if (n.includes('boardproject')) { hitBoardKey = 'boardproject'; break; }
+                    if (n.includes('cat')) { hitBoardKey = 'cat'; break; }
+                    if (cleanN.includes('picture3001') || cleanN.includes('picture3') || cleanN === 'plane007') { 
+                        hitBoardKey = 'picture3'; 
+                        break; 
+                    }
+
                     cur = cur.parent;
                 }
                 if (hitBoardKey) break;
@@ -441,6 +454,12 @@
                     } 
                     else if (hitBoardKey === 'boardskill') {
                         targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z - 1.3);
+                    }
+                    else if (hitBoardKey === 'cat') {
+                        targetCameraPos.set(centerPos.x, centerPos.y + 0.95, centerPos.z + 1.55);
+                    }
+                    else if (hitBoardKey === 'picture3') {
+                        targetCameraPos.set(centerPos.x, centerPos.y, centerPos.z + 1.5);
                     }
 
                     isMovingCamera = true;
