@@ -7,7 +7,7 @@
         body {
             margin: 0;
             overflow: hidden;
-            background-color: #aae8ff;
+            background-color: #88a0f0;
         }
         
         #loading {
@@ -49,7 +49,7 @@
 
 <body>
     <div id="loading">Loading Model...</div>
-    <button id="resetBtn">🔙 Reset View</button>
+    <button id="resetBtn">Reset View</button>
 
     <!-- Video Element -->
     <video id="myVideo" src="https://nichapa67.github.io/nichapa.github.io/coffee.mp4" loop muted playsinline crossorigin="anonymous" style="display:none;"></video>
@@ -69,7 +69,7 @@
         renderer.toneMappingExposure = 1.0;
         document.body.appendChild(renderer.domElement);
 
-        // --- Shaders ---
+        // Shaders
         const toonVertexShader = `
             varying vec3 vNormal;
             varying vec3 vWorldPosition;
@@ -188,7 +188,7 @@
             }
         });
 
-        // 2. Scene & Camera
+        // Scene & Camera
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0xaae8ff);
         scene.add(directionalLight);
@@ -208,8 +208,8 @@
         controls.enableDamping = true; 
         controls.target.copy(defaultLookAt);
 
-        // 5. Environment
-        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/venice_sunset_1k.exr';
+        // Environment
+        const exrSkyboxUrl = 'https://dl.polyhaven.org/file/ph-assets/HDRIs/exr/1k/qwantani_dusk_2_puresky_1k.exr';
         const pmremGenerator = new THREE.PMREMGenerator(renderer);
         pmremGenerator.compileEquirectangularShader();
 
@@ -250,7 +250,7 @@
 
         const targetPlanes = {}; 
 
-        // 6. โหลดโมเดล
+        // โหลดโมเดล
         let myModel;
         const gltfLoader = new THREE.GLTFLoader();
         gltfLoader.load('https://nichapa67.github.io/nichapa.github.io/mymodel_web.glb', 
@@ -290,7 +290,7 @@
                         node.castShadow = true;
                         node.receiveShadow = true;
 
-                        // สวม VideoTexture ให้กรอบรูป Plane.008 หรือ Object Plane
+                        // VideoTexture ให้กรอบรูป Plane.008 
                         if (cleanName === 'plane008' || rawName === 'Plane.008' || rawName === 'Plane') {
                             node.material = videoMaterial;
                         }
@@ -353,7 +353,7 @@
             }
         );
 
-        // --- ระบบคลิกและเลื่อนกล้อง ---
+        // คลิกและเลื่อนกล้อง
         const raycaster = new THREE.Raycaster();
         const mouse = new THREE.Vector2();
 
@@ -425,7 +425,7 @@
 
         const clock = new THREE.Clock();
 
-        // 7. Render Loop
+        // Render Loop
         function animate() {
             requestAnimationFrame(animate);
 
@@ -455,7 +455,7 @@
         }
         animate();
 
-        // 8. Resize
+        // Resize
         window.addEventListener('resize', () => {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
